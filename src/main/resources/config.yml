@@ -1,17 +1,44 @@
 queue-server: "login"
 main-server: "main"
 main-server-slots: 200
+# Limit queue transfers to main when slots are available. Apply changes with /queue reload.
+AntiFlood:
+  # Rolling interval in seconds; decimals are supported. Minimum: 1. Checked every 0.5 seconds.
+  interval-seconds: 3.5
+  # Maximum transfer attempts per interval, shared by both queues. Minimum: 1.
+  # Example: 3.5 seconds / 1 player allows one attempt in any 3.5-second window.
+  # The first batch can start immediately. Failed attempts count; unused quota does not accumulate.
+  players-per-interval: 1
+
+# Applies to players with queue.priority after successful AuthMe login.
+priority:
+  # queue: Priority players go before regular players, FIFO within each group, using AntiFlood.
+  # bypass: Skip queue order and AntiFlood. Automatic transfers are checked every 0.5 seconds.
+  mode: queue
+  # Only for bypass mode. true: Ignore this plugin's main-server-slots limit.
+  # false: Wait for a free slot. The backend must still accept the connection.
+  # Does not bypass AuthMe or change the existing queue.bypass permission.
+  bypass-player-limit: false
+authme:
+  # Enable Hooks.velocity in AuthMe on the queue-server backend.
+  login-title: "&ePlease login"
+  login-subtitle: "&7Use /login to continue"
 messages:
   interval: 10
   server-full: "&62b2t-th is full"
   server-not-full: "&62b2t-th is not full"
+  server-restarting: "&62b2t-th is restarting"
   queue-position: "&6Position in queue: &l%d"
+  title-position: "&6Position in queue: &l%d"
+  action-bar-priority-wait: "&6Priority Queue Estimated Wait: &l%priority_wait%"
+  action-bar-skipped-last-hour: "&6Player who have skipped the queue in the last hour: &l%skipped_last_hour%"
+  action-bar-non-priority-wait: "&6Non-Priority Queue Estimated Wait: &l%non_priority_wait%"
   queue-status: "&6Position in queue: &l%d"
   queue-joined: "&aYou joined the queue. Position: &l%d"
   queue-left: "&aYou left the queue."
   queue-already-in: "&cYou are already in the queue."
   queue-not-in: "&cYou are not in the queue."
-  queue-end: "&6Connecting to &62b2t-th..."
+  queue-end: "&6Connecting to the server."
 #this shows the queue size when you hover over the ping on the server list
 custom-query:
   enable: true
@@ -20,7 +47,6 @@ custom-query:
     - "&6In-game: %online%"
     - "&6Queue: %totalinqueue%"
     - "&6Priority Queue: %priority%"
-  max-players: -1
 tablist:
   header:
     - ""
@@ -36,7 +62,7 @@ tablist:
     - "&6You have priority queue status please wait for an available slot on the server"
     - ""
     - "&7Contact: contact@2b2t.th"
-    - "&7Discussion: http://dsc.gg/2b2t-th"
+    - "&7Discussion: https://dsc.gg/2b2t-th"
     - "&7Website: https://2b2t-th.org"
     - "&7These are the only official 6b6t websites and contacts"
     - ""
@@ -45,7 +71,7 @@ tablist:
     - "&6You can now donate to receive priority queue status, please visit shop.2b2t-th"
     - ""
     - "&7Contact: contact@2b2t.th"
-    - "&7Discussion: http://dsc.gg/2b2t-th"
+    - "&7Discussion: https://dsc.gg/2b2t-th"
     - "&7Website: https://2b2t-th.org"
     - "&7These are the only official 2b2t-th websites and contacts"
     - ""

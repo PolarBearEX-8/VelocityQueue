@@ -28,7 +28,7 @@ public class QueueCommand implements SimpleCommand {
             return;
         }
         if (alias.equals("leave")) {
-            joinQueue(invocation.source());
+            leaveQueue(invocation.source());
             return;
         }
 
@@ -39,6 +39,8 @@ public class QueueCommand implements SimpleCommand {
         }
 
         switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "debug" -> debug(invocation.source(), args);
+            case "leave" -> leaveQueue(invocation.source());
             case "reload" -> {
                 if (!hasAdminPermission(invocation.source())) {
                     sendMessage(invocation.source(), "&cNo Permission");
@@ -72,7 +74,7 @@ public class QueueCommand implements SimpleCommand {
     @Override
     public List<String> suggest(Invocation invocation) {
         if (!invocation.alias().equalsIgnoreCase("queue")) return List.of();
-        if (hasAdminPermission(invocation.source())) return List.of("version", "reload");
+        if (hasAdminPermission(invocation.source())) return List.of("version", "reload", "debug");
         return List.of();
     }
 
@@ -81,6 +83,8 @@ public class QueueCommand implements SimpleCommand {
             sendMessage(source, "&cOnly players can join the queue.");
             return;
         }
+
+        if (!plugin.getAuthMeGate().requireLogin(player)) return;
 
         if (isInQueue(player)) {
             sendMessage(player, configMessage("messages", "queue-already-in", "&cYou are already in the queue."));
@@ -102,25 +106,56 @@ public class QueueCommand implements SimpleCommand {
         }
 
         PlayerQueue queue = player.hasPermission("queue.priority") ? plugin.getPrioQueue() : plugin.getNormalQueue();
-        queue.addToQueue(player);
-        sendMessage(player, configMessage("messages", "queue-joined", "&aYou joined the queue. Position: &l%d"), queue.getQueuePosition(player));
+        if (!plugin.getAuthMeGate().enqueue(player)) return;
+        int position = queue.getQueuePosition(player)
+                + (queue == plugin.getNormalQueue() ? plugin.getPrioQueue().queueLength() : 0);
+        sendMessage(player, configMessage("messages", "queue-joined", "&aYou joined the queue. Position: &l%d"), position);
 
-            if (isConnectedTo(player, queueServer)) {
+        if (isConnectedTo(player, queueServer)) {
             return;
         }
 
+        PlayerQueue.Entry entry = queue.getEntry(player);
         player.createConnectionRequest(queueServer).connect().whenComplete((result, throwable) -> {
+            if (!player.isActive() || entry == null || queue.getEntry(player) != entry) return;
             if (throwable != null) {
-                queue.removeFromQueue(player);
+                queue.removeEntry(entry);
                 plugin.getLogger().atWarn().setCause(throwable).log("Failed to connect {} to queue server", player.getUsername());
                 sendMessage(player, "&cFailed to connect to the queue server.");
                 return;
             }
             if (!result.isSuccessful()) {
-                queue.removeFromQueue(player);
+                queue.removeEntry(entry);
                 sendMessage(player, "&cFailed to connect to the queue server.");
             }
         });
+    }
+
+    private void debug(CommandSource source, String[] args) {
+        if (!hasAdminPermission(source)) {
+            sendMessage(source, "&cNo Permission");
+            return;
+        }
+        if (args.length != 2) {
+            source.sendMessage(net.kyori.adventure.text.Component.text("Usage: /queue debug <player>"));
+            return;
+        }
+        Player player = plugin.getServer().getPlayer(args[1]).orElse(null);
+        if (player == null) {
+            source.sendMessage(net.kyori.adventure.text.Component.text("Player is not online on this proxy."));
+            return;
+        }
+        String current = player.getCurrentServer().map(c -> c.getServerInfo().getName()).orElse("none");
+        String login = plugin.getQueueServer() == null ? "NOT CONFIGURED" : plugin.getQueueServer().getServerInfo().getName();
+        String main = plugin.getMainServer() == null ? "NOT CONFIGURED" : plugin.getMainServer().getServerInfo().getName();
+        source.sendMessage(net.kyori.adventure.text.Component.text("[queue] " + player.getUsername()
+                + ": current=" + current + ", login=" + login + ", main=" + main
+                + ", authenticated=" + plugin.getAuthMeGate().isAuthenticated(player)));
+        source.sendMessage(net.kyori.adventure.text.Component.text("[queue] priority-position="
+                + plugin.getPrioQueue().getQueuePosition(player) + ", normal-position="
+                + plugin.getNormalQueue().getQueuePosition(player) + " (-1=not queued), priority-count="
+                + plugin.getPrioQueue().queueLength() + ", normal-count=" + plugin.getNormalQueue().queueLength()));
+        source.sendMessage(net.kyori.adventure.text.Component.text("[queue] " + plugin.queueDiagnostic(player)));
     }
 
     private void leaveQueue(CommandSource source) {
@@ -135,6 +170,7 @@ public class QueueCommand implements SimpleCommand {
         }
 
         sendMessage(player, configMessage("messages", "queue-left", "&aYou left the queue."));
+        player.clearTitle();
     }
 
     private void sendQueueStatus(CommandSource source) {

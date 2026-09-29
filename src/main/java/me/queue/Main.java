@@ -10,6 +10,7 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerPing;
 import com.velocitypowered.api.scheduler.ScheduledTask;
 import lombok.Getter;
+import me.queue.auth.AuthMeGate;
 import me.queue.commands.QueueCommand;
 import me.queue.listeners.DisconnectListener;
 import me.queue.listeners.PreConnectListener;
@@ -25,11 +26,13 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Plugin(id = "queue",
         name = "LeeesVelocityQueue",
-        version = "1.0.1-RELEASE", description = "A 2b2t like queue plugin for Velocity",
+        version = "1.0.5-RELEASE", description = "A 2b2t like queue plugin for Velocity",
         authors = {"zeb.co"})
 public class Main implements Reloadable {
     @Getter private final ProxyServer server;
@@ -41,11 +44,16 @@ public class Main implements Reloadable {
     @Getter private RegisteredServer queueServer;
     @Getter private int maxSlots;
     @Getter private final List<Reloadable> reloadables;
+    @Getter private AuthMeGate authMeGate;
 
     private ScheduledTask queueNotifyTask;
     private ScheduledTask messageTask;
+    private ScheduledTask authTask;
+    private QueueWorker queueWorker;
+    private final BackendStatus backendStatus = new BackendStatus();
     private File configFile;
     private int messageInterval;
+    private final ConcurrentLinkedDeque<Long> prioritySkips = new ConcurrentLinkedDeque<>();
 
     @Inject
     public Main(ProxyServer server, Logger logger) {
@@ -66,13 +74,17 @@ public class Main implements Reloadable {
         reloadConfig();
         normalQueue = new PlayerQueue();
         prioQueue = new PlayerQueue();
+        authMeGate = new AuthMeGate(this);
+        server.getChannelRegistrar().register(AuthMeGate.CHANNEL);
+        server.getEventManager().register(this, authMeGate);
+        authTask = server.getScheduler().buildTask(this, authMeGate).repeat(Duration.ofSeconds(1)).schedule();
         server.getEventManager().register(this, registerReloadable(new PreConnectListener(this)));
         server.getEventManager().register(this, new DisconnectListener(this));
         server.getEventManager().register(this, registerReloadable(new ProxyPingListener(this)));
         server.getCommandManager().register(server.getCommandManager().metaBuilder("queue").aliases("join", "leave").plugin(this).build(), new QueueCommand(this));
-        QueueWorker queueWorker = registerReloadable(new QueueWorker(this));
+        queueWorker = registerReloadable(new QueueWorker(this));
         MessageWorker messageWorker = registerReloadable(new MessageWorker(this));
-        queueNotifyTask = server.getScheduler().buildTask(this, queueWorker).repeat(Duration.ofSeconds(1)).schedule();
+        queueNotifyTask = server.getScheduler().buildTask(this, queueWorker).repeat(Duration.ofMillis(500)).schedule();
         messageTask = server.getScheduler().buildTask(this, messageWorker).repeat(Duration.ofSeconds(messageInterval)).schedule();
     }
 
@@ -80,6 +92,8 @@ public class Main implements Reloadable {
     public void onShutdown(ProxyShutdownEvent event) {
         if (queueNotifyTask != null) queueNotifyTask.cancel();
         if (messageTask != null) messageTask.cancel();
+        if (authTask != null) authTask.cancel();
+        server.getChannelRegistrar().unregister(AuthMeGate.CHANNEL);
         reloadables.clear();
     }
 
@@ -122,14 +136,49 @@ public class Main implements Reloadable {
     }
 
     public boolean doesServerHaveSlot() {
-        if (mainServer == null) return false;
-        try {
-            ServerPing ping = getMainServer().ping().join();
-            ServerPing.Players players = ping.getPlayers().orElse(null);
-            if (players == null) return false;
-            return players.getOnline() < maxSlots;
-        } catch (Exception e) {
-            return false;
+        return getMainServerStatus() == MainServerStatus.HAS_SLOT;
+    }
+
+    public boolean isQueueTransfer(com.velocitypowered.api.proxy.Player player) {
+        return queueWorker != null && queueWorker.isConnecting(player);
+    }
+
+    /** Available configured slots, or -1 when the backend cannot be queried. */
+    public int getMainServerAvailableSlots() {
+        return backendStatus.available(mainServer, maxSlots);
+    }
+
+    public void invalidateMainServerStatus() {
+        backendStatus.invalidate();
+    }
+
+    public String queueDiagnostic(com.velocitypowered.api.proxy.Player player) {
+        int slots = getMainServerAvailableSlots();
+        return "slots=" + slots + " (-1=unavailable), " + backendStatus.diagnostic()
+                + "; " + (queueWorker == null ? "worker not initialized" : queueWorker.diagnostic(player));
+    }
+
+    public void recordPriorityQueueSkip() {
+        prioritySkips.add(System.currentTimeMillis());
+    }
+
+    public int getPriorityQueueSkipsLastHour() {
+        long cutoff = System.currentTimeMillis() - Duration.ofHours(1).toMillis();
+        Iterator<Long> iterator = prioritySkips.iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next() < cutoff) iterator.remove();
         }
+        return prioritySkips.size();
+    }
+
+    public MainServerStatus getMainServerStatus() {
+        int slots = getMainServerAvailableSlots();
+        return slots < 0 ? MainServerStatus.RESTARTING : slots == 0 ? MainServerStatus.FULL : MainServerStatus.HAS_SLOT;
+    }
+
+    public enum MainServerStatus {
+        HAS_SLOT,
+        FULL,
+        RESTARTING
     }
 }

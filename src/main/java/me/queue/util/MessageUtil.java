@@ -5,6 +5,8 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.title.Title;
 
+import java.time.Duration;
+
 public final class MessageUtil {
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
@@ -59,7 +61,8 @@ public final class MessageUtil {
         if ((title == null || title.isEmpty()) && (subtitle == null || subtitle.isEmpty())) return;
         Title titleObj = Title.title(
                 translateChars(formatOrEmpty(title, args)),
-                translateChars(formatOrEmpty(subtitle, args))
+                translateChars(formatOrEmpty(subtitle, args)),
+                Title.Times.times(Duration.ZERO, Duration.ofHours(1), Duration.ZERO)
         );
         player.showTitle(titleObj);
     }

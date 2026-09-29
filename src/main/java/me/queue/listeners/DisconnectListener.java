@@ -2,7 +2,6 @@ package me.queue.listeners;
 
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
-import com.velocitypowered.api.event.player.KickedFromServerEvent;
 import com.velocitypowered.api.proxy.Player;
 import me.queue.Main;
 import me.queue.PlayerQueue;
@@ -22,10 +21,8 @@ public class DisconnectListener {
         onDisconnect(event.getPlayer());
     }
 
-    @Subscribe
-    public void onKick(KickedFromServerEvent event) {
-        onDisconnect(event.getPlayer());
-    }
+    // A backend kick during a failed transfer is not a proxy disconnect.
+    // Keep the waiting player's place; DisconnectEvent handles actual departures.
     private void onDisconnect(Player player) {
         if (prioQueue.isInQueue(player)) prioQueue.removeFromQueue(player);
         if (normalQueue.isInQueue(player)) normalQueue.removeFromQueue(player);

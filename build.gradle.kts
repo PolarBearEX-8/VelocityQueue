@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "me.queue"
-version = "1.0.1-RELEASE"
+version = "1.0.5-RELEASE"
 
 java {
     toolchain {
@@ -27,6 +27,15 @@ dependencies {
 
     compileOnly("org.projectlombok:lombok:1.18.46")
     annotationProcessor("org.projectlombok:lombok:1.18.46")
+
+    testImplementation("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testImplementation("org.mockito:mockito-core:5.15.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.runVelocity {
