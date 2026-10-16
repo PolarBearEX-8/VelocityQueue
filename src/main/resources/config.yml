@@ -20,25 +20,25 @@ priority:
   # Does not bypass AuthMe or change the existing queue.bypass permission.
   bypass-player-limit: false
 authme:
-  # For Login/Register prompts, install QueueLoginBridge on the queue-server backend.
-  # In the bridge setup, set AuthMe Hooks.velocity: false; see the bridge install notes.
-  # Shown while QueueLoginBridge is checking whether the account is registered.
+  # ต้องติดตั้ง QueueLoginBridge บน queue-server เพื่อแยก prompt Login กับ Register
+  # เมื่อใช้ Bridge ให้ตั้ง AuthMe Hooks.velocity: false ดูวิธีติดตั้งใน README ของ Bridge
+  # แสดงระหว่างรอ Bridge ตรวจว่าบัญชีนี้เคย Register แล้วหรือยัง
   checking-title: "&eChecking account"
   checking-subtitle: "&7Please wait"
-  # Shown for an existing account that still needs to log in.
+  # แสดงเมื่อมีบัญชีแล้ว แต่ยังไม่ได้ Login
   login-title: "&ePlease login"
   login-subtitle: "&7/login <password>"
-  # Shown when the player needs to create an account.
+  # แสดงเมื่อยังไม่มีบัญชีและต้อง Register ก่อน
   register-title: "&ePlease register"
   register-subtitle: "&7/register <create your password> <re-type your password>"
-  # Wait after QueueLoginBridge reports the account status before showing Login or Register.
-  # The Checking prompt can remain visible during this delay.
+  # หน่วงหลัง Bridge ส่งผลตรวจบัญชี ก่อนแสดง Login หรือ Register (หน่วย ms)
+  # ระหว่างหน่วงนี้ Checking prompt ยังแสดงอยู่
   account-check-delay-ms: 500
-  # Fade-in duration for each Checking, Login, or Register prompt.
+  # ระยะเวลา Fade in ของ Checking, Login และ Register prompt (หน่วย ms)
   prompt-fade-in-ms: 500
-  # How long each prompt stays visible after fading in; minimum 1000, maximum 86400000.
+  # เวลาที่ prompt แสดงหลัง Fade in เสร็จ (หน่วย ms; ต่ำสุด 1000, สูงสุด 86400000)
   prompt-stay-ms: 3600000
-  # Fade out the current prompt after AuthMe confirms a successful login.
+  # ระยะเวลา Fade out เมื่อ AuthMe ยืนยันว่า Login สำเร็จ (หน่วย ms)
   login-fade-out-ms: 600
 messages:
   interval: 10
