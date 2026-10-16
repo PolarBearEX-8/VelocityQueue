@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Plugin(id = "queue",
         name = "LeeesVelocityQueue",
-        version = "1.0.5-RELEASE", description = "A 2b2t like queue plugin for Velocity",
+        version = "1.0.8-RELEASE", description = "A 2b2t like queue plugin for Velocity",
         authors = {"zeb.co"})
 public class Main implements Reloadable {
     @Getter private final ProxyServer server;
@@ -76,6 +76,7 @@ public class Main implements Reloadable {
         prioQueue = new PlayerQueue();
         authMeGate = new AuthMeGate(this);
         server.getChannelRegistrar().register(AuthMeGate.CHANNEL);
+        server.getChannelRegistrar().register(AuthMeGate.ACCOUNT_CHANNEL);
         server.getEventManager().register(this, authMeGate);
         authTask = server.getScheduler().buildTask(this, authMeGate).repeat(Duration.ofSeconds(1)).schedule();
         server.getEventManager().register(this, registerReloadable(new PreConnectListener(this)));
@@ -94,6 +95,7 @@ public class Main implements Reloadable {
         if (messageTask != null) messageTask.cancel();
         if (authTask != null) authTask.cancel();
         server.getChannelRegistrar().unregister(AuthMeGate.CHANNEL);
+        server.getChannelRegistrar().unregister(AuthMeGate.ACCOUNT_CHANNEL);
         reloadables.clear();
     }
 

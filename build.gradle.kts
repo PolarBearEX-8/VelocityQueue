@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "me.queue"
-version = "1.0.5-RELEASE"
+version = "1.0.8-RELEASE"
 
 java {
     toolchain {

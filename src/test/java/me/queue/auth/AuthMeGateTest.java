@@ -134,7 +134,7 @@ class AuthMeGateTest {
         assertEquals(0, normal.queueLength());
         ArgumentCaptor<Title> title = ArgumentCaptor.forClass(Title.class);
         verify(player).showTitle(title.capture());
-        assertEquals(me.queue.util.MessageUtil.translateChars("&ePlease login"), title.getValue().title());
+        assertEquals(me.queue.util.MessageUtil.translateChars("&eChecking account"), title.getValue().title());
     }
 
     @Test

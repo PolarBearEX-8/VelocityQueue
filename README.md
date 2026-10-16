@@ -13,8 +13,8 @@ Only validated messages remain available to other proxy listeners; client-origin
 unknown messages are blocked immediately. A LAST-order listener consumes the channel to prevent forwarding
 to clients even when AuthMeVelocity is absent. An already handled event is never reopened.
 
-Replace the VelocityQueue JAR on Velocity with `build/libs/VelocityQueue-1.0.5-RELEASE.jar`, restart Velocity,
-then reconnect. Keep AuthMeVelocity 4.3.0 and the existing Paper QueueLoginBridge. No authentication bypass
+Replace the VelocityQueue JAR on Velocity with `build/libs/VelocityQueue-1.0.8-RELEASE.jar`, restart Velocity,
+then reconnect. Keep AuthMeVelocity 4.3.0 and install Paper QueueLoginBridge 1.0.1 on the login backend. No authentication bypass
 permission is needed. Disable AuthMeVelocity's automatic send-on-login feature if enabled so the queue
 controls transfers. When QueueLoginBridge supplies the reports, AuthMe's native `Hooks.velocity` can remain false.
 The change was checked against the supplied AuthMeVelocity JAR's bytecode and regression-tested locally;
@@ -89,26 +89,34 @@ The local Velocity files are created under `run/`.
 
 ### AuthMe login requirement (1.0.2)
 
-Install this queue JAR on **Velocity**. Install the supplied `AuthMe-5.7.0-FORK-Universal.jar` on the **login backend**, which must match `queue-server`. In that backend's `plugins/AuthMe/config.yml`, enable the existing setting:
+Install this queue JAR on **Velocity**. Install the supplied `AuthMe-5.7.0-FORK-Universal.jar` on the **login backend**, which must match `queue-server`. For direct AuthMe notifications, enable the existing setting in that backend's `plugins/AuthMe/config.yml`:
 
 ```yaml
 Hooks:
   velocity: true
 ```
 
-Merge this setting into the existing `Hooks` section; do not replace the entire AuthMe config. Restart the login backend and Velocity after installing the updated plugins. No additional AuthMeVelocity plugin is required for this queue integration. Avoid another proxy plugin that independently moves players after login.
+Merge this setting into the existing `Hooks` section; do not replace the entire AuthMe config. Restart the login backend and Velocity after installing the updated plugins. For the stage-specific register/login title, install QueueLoginBridge 1.0.1 on the login backend and use its documented `Hooks.velocity: false` setup; the bridge reports the account's registration state to VelocityQueue. Avoid another proxy plugin that independently moves players after login.
 
-Unauthenticated players stay on `login`, see `Please login`, and do not count toward either queue. AuthMe's `LOGIN` message automatically puts them into the appropriate normal/priority queue. They are transferred to `main` when a slot is available. `/queue` and `/join` require authentication, and `queue.bypass` does not bypass login. `REGISTER` alone does not authenticate a player; AuthMe must confirm `LOGIN` (including its successful session/automatic login flow).
+Unauthenticated players stay on `login` and do not count toward either queue. QueueLoginBridge 1.0.1 reports whether AuthMe has an account for them: new players see the registration prompt, while existing accounts see the login prompt. AuthMe's `LOGIN` message automatically puts authenticated players into the appropriate normal/priority queue. They are transferred to `main` when a slot is available. `/queue` and `/join` require authentication, and `queue.bypass` does not bypass login. `REGISTER` alone does not authenticate a player; AuthMe must confirm `LOGIN` (including its successful session/automatic login flow).
 
 `LOGOUT`, `UNREGISTER`, and `FORCE_UNREGISTER` from the login backend remove the player from the queue and restore the login prompt. Disconnecting or returning from another server to the login backend requires a fresh AuthMe confirmation. Repeated `LOGIN` notifications do not undo `/leave`.
 
 ```yaml
 authme:
+  checking-title: "&eChecking account"
+  checking-subtitle: "&7Please wait"
   login-title: "&ePlease login"
-  login-subtitle: "&7Use /login to continue"
+  login-subtitle: "&7/login <password>"
+  register-title: "&ePlease register"
+  register-subtitle: "&7/register <create your password> <re-type your password>"
+  account-check-delay-ms: 500
+  prompt-fade-in-ms: 500
+  prompt-stay-ms: 3600000
+  login-fade-out-ms: 600
 ```
 
-The title refreshes once per second until authentication. Queue messages start after login. If `Hooks.velocity` is disabled or AuthMe sends no confirmation, the player remains outside the queue. Only messages on `authmevelocity:main` from the player's current connection to the configured login backend are trusted; client-origin messages are consumed without forwarding.
+After `account-check-delay-ms`, the matching prompt fades in over `prompt-fade-in-ms` and stays for `prompt-stay-ms`. When AuthMe confirms login, it fades out over `login-fade-out-ms`. All prompt text and these timings can be changed under `authme`. When registration status has not arrived yet, the configurable checking prompt is shown. Stage-aware prompts require QueueLoginBridge 1.0.1; AuthMe's native `authmevelocity:main` messages report successful login/register actions but cannot tell whether a new connection already has an account. Queue messages start after login. If AuthMe sends no login confirmation, the player remains outside the queue. Login events on `authmevelocity:main` and account reports on `queue:account` are accepted only from the player's current connection to the configured login backend; both channels are consumed before they can reach clients.
 
 This integration uses AuthMe's existing notification protocol; it does not query passwords or the AuthMe database. Protect backend servers from direct public connections as required by your proxy setup.
 
