@@ -20,19 +20,25 @@ priority:
   # Does not bypass AuthMe or change the existing queue.bypass permission.
   bypass-player-limit: false
 authme:
-  # Enable Hooks.velocity in AuthMe on the queue-server backend.
+  # For Login/Register prompts, install QueueLoginBridge on the queue-server backend.
+  # In the bridge setup, set AuthMe Hooks.velocity: false; see the bridge install notes.
+  # Shown while QueueLoginBridge is checking whether the account is registered.
   checking-title: "&eChecking account"
   checking-subtitle: "&7Please wait"
+  # Shown for an existing account that still needs to log in.
   login-title: "&ePlease login"
   login-subtitle: "&7/login <password>"
+  # Shown when the player needs to create an account.
   register-title: "&ePlease register"
   register-subtitle: "&7/register <create your password> <re-type your password>"
-  # Wait after the account status reply, then fade in the matching prompt.
+  # Wait after QueueLoginBridge reports the account status before showing Login or Register.
+  # The Checking prompt can remain visible during this delay.
   account-check-delay-ms: 500
+  # Fade-in duration for each Checking, Login, or Register prompt.
   prompt-fade-in-ms: 500
-  # How long to keep an unchanged prompt visible; minimum 1000, maximum 86400000.
+  # How long each prompt stays visible after fading in; minimum 1000, maximum 86400000.
   prompt-stay-ms: 3600000
-  # Fade the displayed prompt after successful authentication.
+  # Fade out the current prompt after AuthMe confirms a successful login.
   login-fade-out-ms: 600
 messages:
   interval: 10

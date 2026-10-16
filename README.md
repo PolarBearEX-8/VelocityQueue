@@ -89,14 +89,15 @@ The local Velocity files are created under `run/`.
 
 ### AuthMe login requirement (1.0.2)
 
-Install this queue JAR on **Velocity**. Install the supplied `AuthMe-5.7.0-FORK-Universal.jar` on the **login backend**, which must match `queue-server`. For direct AuthMe notifications, enable the existing setting in that backend's `plugins/AuthMe/config.yml`:
+Install this queue JAR on **Velocity** and install the supplied `AuthMe-5.7.0-FORK-Universal.jar` on the **login backend**, which must match `queue-server`. Choose one notification setup:
 
 ```yaml
+# AuthMe-only setup (reports successful auth, but cannot identify new accounts):
 Hooks:
   velocity: true
 ```
 
-Merge this setting into the existing `Hooks` section; do not replace the entire AuthMe config. Restart the login backend and Velocity after installing the updated plugins. For the stage-specific register/login title, install QueueLoginBridge 1.0.1 on the login backend and use its documented `Hooks.velocity: false` setup; the bridge reports the account's registration state to VelocityQueue. Avoid another proxy plugin that independently moves players after login.
+For stage-specific Login/Register prompts, install QueueLoginBridge 1.0.1 on the login backend instead, and set `Hooks.velocity: false` in AuthMe. The bridge replaces AuthMe's notification hook and reports both account status and login state. Merge the selected value into the existing `Hooks` section; do not replace the entire AuthMe config. Restart the login backend and Velocity after installing the updated plugins. Avoid another proxy plugin that independently moves players after login.
 
 Unauthenticated players stay on `login` and do not count toward either queue. QueueLoginBridge 1.0.1 reports whether AuthMe has an account for them: new players see the registration prompt, while existing accounts see the login prompt. AuthMe's `LOGIN` message automatically puts authenticated players into the appropriate normal/priority queue. They are transferred to `main` when a slot is available. `/queue` and `/join` require authentication, and `queue.bypass` does not bypass login. `REGISTER` alone does not authenticate a player; AuthMe must confirm `LOGIN` (including its successful session/automatic login flow).
 
@@ -116,7 +117,14 @@ authme:
   login-fade-out-ms: 600
 ```
 
-After `account-check-delay-ms`, the matching prompt fades in over `prompt-fade-in-ms` and stays for `prompt-stay-ms`. When AuthMe confirms login, it fades out over `login-fade-out-ms`. All prompt text and these timings can be changed under `authme`. When registration status has not arrived yet, the configurable checking prompt is shown. Stage-aware prompts require QueueLoginBridge 1.0.1; AuthMe's native `authmevelocity:main` messages report successful login/register actions but cannot tell whether a new connection already has an account. Queue messages start after login. If AuthMe sends no login confirmation, the player remains outside the queue. Login events on `authmevelocity:main` and account reports on `queue:account` are accepted only from the player's current connection to the configured login backend; both channels are consumed before they can reach clients.
+The title flow is:
+
+1. The Checking prompt appears while QueueLoginBridge checks the account; `prompt-fade-in-ms` controls how quickly it fades in.
+2. After QueueLoginBridge reports the account status, `account-check-delay-ms` waits before the Login or Register prompt appears. The Checking prompt can remain visible during this wait.
+3. The selected prompt fades in over `prompt-fade-in-ms` and stays for `prompt-stay-ms`.
+4. After AuthMe confirms a successful login, the current prompt fades out over `login-fade-out-ms`.
+
+All times are in milliseconds. The prompt text and timings can be changed under `authme`. Stage-aware prompts require QueueLoginBridge 1.0.1; AuthMe's native `authmevelocity:main` messages report successful login/register actions but cannot tell whether a new connection already has an account. Queue messages start after login. If AuthMe sends no login confirmation, the player remains outside the queue. Login events on `authmevelocity:main` and account reports on `queue:account` are accepted only from the player's current connection to the configured login backend; both channels are consumed before they can reach clients.
 
 This integration uses AuthMe's existing notification protocol; it does not query passwords or the AuthMe database. Protect backend servers from direct public connections as required by your proxy setup.
 
